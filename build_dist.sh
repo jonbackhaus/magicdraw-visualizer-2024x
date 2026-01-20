@@ -19,6 +19,7 @@ fi
 # Prepare distribution structure
 echo "Preparing distribution structure..."
 rm -rf $DIST_DIR $TEMP_DIR
+mkdir -p $DIST_DIR
 mkdir -p $TEMP_DIR/plugins/$PLUGIN_ID
 mkdir -p $TEMP_DIR/data/resourcemanager
 
