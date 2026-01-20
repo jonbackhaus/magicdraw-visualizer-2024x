@@ -27,6 +27,11 @@ public class ChordDiagramDescriptor extends VisualizerDiagramDescriptor {
     }
 
     @Override
+    public String getCategory() {
+        return "Visualizer Diagrams";
+    }
+
+    @Override
     public String getSingularDiagramTypeHumanName() {
         return DIAGRAM_TYPE;
     }
