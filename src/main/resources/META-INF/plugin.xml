@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin
+        id="com.jonbackhaus.visualizer"
+        name="Visualizer"
+        version="1.0.0"
+        vendor="Jon Backhaus"
+        class="com.jonbackhaus.visualizer.VisualizerPlugin">
+
+    <runtime>
+        <library name="magicdraw-visualizer-1.0.0.jar"/>
+    </runtime>
+
+    <description>
+        Visualizer plugin for Catia Magic (MagicDraw). Implements custom diagrams including Chord Diagram.
+    </description>
+</plugin>

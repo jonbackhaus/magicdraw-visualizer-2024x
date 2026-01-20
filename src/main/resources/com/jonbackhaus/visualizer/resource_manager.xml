@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource id="com.jonbackhaus.visualizer" name="Visualizer Plugin" version="1.0.0">
+    <description>Visualizer plugin for Catia Magic (MagicDraw).</description>
+    <file location="plugins/com.jonbackhaus.visualizer/plugin.xml" target-location="plugins/com.jonbackhaus.visualizer/plugin.xml"/>
+    <file location="plugins/com.jonbackhaus.visualizer/magicdraw-visualizer-1.0.0.jar" target-location="plugins/com.jonbackhaus.visualizer/magicdraw-visualizer-1.0.0.jar"/>
+</resource>
