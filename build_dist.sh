@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Configuration
-VERSION="1.0"
+VERSION="1.0.0"
 PLUGIN_ID="com.jonbackhaus.visualizer"
 PLUGIN_UID="79833" # Unique ID for visualizer
-JAR_NAME="magicdraw-visualizer-1.0.0.jar"
+JAR_NAME="magicdraw-visualizer-${VERSION}.jar"
 DIST_DIR="dist"
 DIST_DATE=$(date +%Y-%m-%d)
 TEMP_DIR="dist/temp"
-ZIP_NAME="visualizer-plugin-v$VERSION.zip"
+ZIP_NAME="visualizer-plugin-v${VERSION}.zip"
 MDR_NAME="MDR_Plugin_Visualizer_v${VERSION}_descriptor.xml"
 
 echo "Building Visualizer Distribution Bundle v$VERSION..."
@@ -54,7 +54,8 @@ EOF
 
 # 5. Create Zip Bundle
 cd "$TEMP_DIR"
-zip -r "../../$DIST_DIR/$ZIP_NAME" . > /dev/null
+# Exclude Mac specific files and directories
+zip -r -X "../../$DIST_DIR/$ZIP_NAME" . -x "*.DS_Store" -x "__MACOSX*" > /dev/null
 cd ../..
 
 # 6. Cleanup
