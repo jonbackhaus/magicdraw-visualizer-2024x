@@ -44,7 +44,19 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
     }
 
     private void initBrowser() {
-        engine = Engine.newInstance(EngineOptions.newBuilder(OFF_SCREEN).build());
+        // Load JxBrowser license key from system properties or environment
+        String key = System.getProperty("jxbrowser.license.key");
+        if (key == null || key.isEmpty()) {
+            throw new IllegalStateException(
+                "JxBrowser license key not configured. " +
+                "Set -Djxbrowser.license.key or configure via the host app.");
+        }
+
+        engine = Engine.newInstance(
+            EngineOptions.newBuilder(OFF_SCREEN)
+            .licenseKey(key)
+            .build()
+            );
         browser = engine.newBrowser();
     }
 
