@@ -1,14 +1,14 @@
 <plugin
         id="com.jonbackhaus.visualizer"
         name="Visualizer"
-        version="1.0"
-        provider-name="Jon Backhaus"
+        version="1.0.0"
+        provider-name="Jonathan Backhaus"
         class="com.jonbackhaus.visualizer.VisualizerPlugin">
 
     <runtime>
         <library name="magicdraw-visualizer-1.0.0.jar"/>
     </runtime>
     <requires>
-        <api version="1.0.0"/>
+        <api version="1.0"/>
     </requires>
 </plugin>
