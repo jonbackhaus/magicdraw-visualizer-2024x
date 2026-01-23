@@ -17,8 +17,14 @@ public class VisualizerPlugin extends Plugin {
 
     @Override
     public void init() {
-        registerDiagrams();
-        registerOwnership();
+        try {
+            registerDiagrams();
+            registerOwnership();
+            System.out.println("[Visualizer] Plugin initialized successfully");
+        } catch (Throwable t) {
+            System.err.println("[Visualizer] Failed to initialize plugin: " + t.getMessage());
+            t.printStackTrace();
+        }
     }
 
     private void registerOwnership() {
