@@ -14,7 +14,7 @@ MDR_NAME="MDR_Plugin_Visualizer_v${VERSION}_descriptor.xml"
 echo "Building Visualizer Distribution Bundle v$VERSION..."
 
 # 1. Clean and build project
-mvn clean package -DskipTests
+mvn clean package -DskipTests "$@"
 if [ $? -ne 0 ]; then
     echo "Maven build failed!"
     exit 1
