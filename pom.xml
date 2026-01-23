@@ -11,76 +11,64 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <md.path>/Applications/MagicDraw 2022xR2 HF3</md.path>
+        <md.path>/Applications/MagicDraw 2024xR3</md.path>
         <md.lib.path>${md.path}/lib</md.lib.path>
+        <md.version>2024.3.0</md.version>
+        <md.build>55-260588bf</md.build>
     </properties>
 
     <dependencies>
         <!-- MagicDraw Core Libraries -->
         <dependency>
             <groupId>com.nomagic</groupId>
-            <artifactId>md_api</artifactId>
-            <version>2022.2.0</version>
+            <artifactId>core</artifactId>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/md_api.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.nomagic</groupId>
-            <artifactId>md</artifactId>
-            <version>2022.2.0</version>
-            <scope>system</scope>
-            <systemPath>${md.lib.path}/md.jar</systemPath>
+            <systemPath>${md.lib.path}/core-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic</groupId>
             <artifactId>modeling</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.nomagic.magicdraw.modeling-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.nomagic.magicdraw.modeling-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic</groupId>
             <artifactId>uml2</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.nomagic.magicdraw.uml2-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.nomagic.magicdraw.uml2-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic</groupId>
             <artifactId>common</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/common-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/common-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic</groupId>
             <artifactId>core-diagram</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.nomagic.magicdraw.core.diagram-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.nomagic.magicdraw.core.diagram-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic</groupId>
             <artifactId>utils</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.nomagic.utils-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.nomagic.utils-${md.version}-${md.build}.jar</systemPath>
         </dependency>
 
         <!-- Dependent Plugins -->
         <dependency>
             <groupId>com.nomagic</groupId>
-            <artifactId>dependencymatrix-api</artifactId>
-            <version>2022.2.0</version>
-            <scope>system</scope>
-            <systemPath>${md.path}/plugins/com.nomagic.magicdraw.dependencymatrix/dependencymatrix_api.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.nomagic</groupId>
             <artifactId>dependencymatrix</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.path}/plugins/com.nomagic.magicdraw.dependencymatrix/dependencymatrix.jar</systemPath>
+            <systemPath>${md.path}/plugins/com.nomagic.magicdraw.dependencymatrix/dependencymatrix-${md.version}-${md.build}.jar</systemPath>
         </dependency>
 
         <!-- Third-party Libraries -->
@@ -94,9 +82,9 @@
         <dependency>
             <groupId>org.eclipse.emf</groupId>
             <artifactId>org.eclipse.emf.common</artifactId>
-            <version>2.40.0</version>
+            <version>2.41.0</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/org.eclipse.emf.common-2.40.0.jar</systemPath>
+            <systemPath>${md.lib.path}/org.eclipse.emf.common-2.41.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.eclipse.emf</groupId>
@@ -108,16 +96,16 @@
         <dependency>
             <groupId>com.teamdev.jxbrowser</groupId>
             <artifactId>jxbrowser</artifactId>
-            <version>7.30.3</version>
+            <version>8.0.0</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/jxbrowser-7.30.3.jar</systemPath>
+            <systemPath>${md.lib.path}/jxbrowser-8.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.teamdev.jxbrowser</groupId>
             <artifactId>jxbrowser-swing</artifactId>
-            <version>7.30.3</version>
+            <version>8.0.0</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/jxbrowser-swing-7.30.3.jar</systemPath>
+            <systemPath>${md.lib.path}/jxbrowser-swing-8.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -127,11 +115,11 @@
             <systemPath>${md.lib.path}/gson-2.9.0.jar</systemPath>
         </dependency>
         <dependency>
-            <groupId>com.nomagic.magicdraw</groupId>
-            <artifactId>foundation</artifactId>
-            <version>2022.2.0</version>
+            <groupId>com.dassault_systemes</groupId>
+            <artifactId>modeler-foundation</artifactId>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.dassault_systemes.modeler.foundation-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.dassault_systemes.modeler.foundation-${md.version}-${md.build}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.nomagic.magicdraw</groupId>
@@ -143,9 +131,9 @@
         <dependency>
             <groupId>com.nomagic.magicdraw</groupId>
             <artifactId>md-foundation</artifactId>
-            <version>2022.2.0</version>
+            <version>${md.version}</version>
             <scope>system</scope>
-            <systemPath>${md.lib.path}/com.nomagic.magicdraw.foundation-2022.2.0-168-7c289b26.jar</systemPath>
+            <systemPath>${md.lib.path}/com.nomagic.magicdraw.foundation-${md.version}-${md.build}.jar</systemPath>
         </dependency>
     </dependencies>
 
