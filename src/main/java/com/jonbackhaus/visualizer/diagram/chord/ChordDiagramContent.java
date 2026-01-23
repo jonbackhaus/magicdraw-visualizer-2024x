@@ -18,9 +18,12 @@ import com.google.gson.JsonObject;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static com.teamdev.jxbrowser.engine.RenderingMode.OFF_SCREEN;
@@ -44,12 +47,11 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
     }
 
     private void initBrowser() {
-        // Load JxBrowser license key from system properties or environment
-        String key = System.getProperty("jxbrowser.license.key");
+        String key = loadLicenseKey();
         if (key == null || key.isEmpty()) {
             throw new IllegalStateException(
                 "JxBrowser license key not configured. " +
-                "Set -Djxbrowser.license.key or configure via the host app.");
+                "Add jxbrowser.properties with license.key to the resources folder.");
         }
 
         engine = Engine.newInstance(
@@ -58,6 +60,26 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             .build()
             );
         browser = engine.newBrowser();
+    }
+
+    private String loadLicenseKey() {
+        // First try system property (allows override)
+        String key = System.getProperty("jxbrowser.license.key");
+        if (key != null && !key.isEmpty()) {
+            return key;
+        }
+
+        // Then try bundled properties file
+        try (InputStream is = getClass().getResourceAsStream("/jxbrowser.properties")) {
+            if (is != null) {
+                Properties props = new Properties();
+                props.load(is);
+                return props.getProperty("license.key");
+            }
+        } catch (IOException e) {
+            // Fall through to return null
+        }
+        return null;
     }
 
     @Override

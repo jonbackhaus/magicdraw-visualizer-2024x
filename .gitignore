@@ -47,3 +47,6 @@ bin/
 
 # Distribution
 dist/
+
+# License/secrets
+src/main/resources/jxbrowser.properties

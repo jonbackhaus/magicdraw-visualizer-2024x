@@ -1,0 +1,5 @@
+# JxBrowser License Configuration
+# Copy this file to jxbrowser.properties and add your license key.
+# The jxbrowser.properties file is gitignored to prevent secrets from being committed.
+
+license.key=YOUR_LICENSE_KEY_HERE
