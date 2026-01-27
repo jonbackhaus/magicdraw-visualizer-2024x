@@ -14,7 +14,6 @@ public class DiagramConfigPanel extends JPanel {
     private JComboBox<String> relationCriteriaCombo;
     private JCheckBox showImpliedCheckbox;
     private JSpinner depthSpinner;
-    private JComboBox<String> layoutCombo;
     private JButton refreshButton;
 
     public DiagramConfigPanel() {
@@ -117,16 +116,6 @@ public class DiagramConfigPanel extends JPanel {
         add(depthSpinner, gbc);
         row++;
 
-        // Layout
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        add(new JLabel("Layout:"), gbc);
-        gbc.gridx = 1;
-        layoutCombo = new JComboBox<>(new String[] { "Chord", "Radial" });
-        layoutCombo.setSelectedItem("Chord");
-        add(layoutCombo, gbc);
-        row++;
-
         // Spacer
         gbc.gridy = row++;
         add(Box.createVerticalStrut(15), gbc);
@@ -169,10 +158,6 @@ public class DiagramConfigPanel extends JPanel {
 
     public int getDepth() {
         return (Integer) depthSpinner.getValue();
-    }
-
-    public String getLayoutStyle() {
-        return (String) layoutCombo.getSelectedItem();
     }
 
     public void addRefreshListener(ActionListener listener) {
