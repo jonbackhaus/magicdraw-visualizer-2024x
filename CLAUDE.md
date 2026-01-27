@@ -4,17 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MagicDraw Visualizer is a Java plugin for MagicDraw/Cameo 2024x that provides custom non-symbol diagrams. The initial implementation includes a Chord Diagram for visualizing element relationships, using JxBrowser and D3js.
+MagicDraw Visualizer is a Java plugin for MagicDraw/Cameo 2024x that provides custom non-symbol diagrams for visual analysis. The initial implementation includes a Chord Diagram for visualizing element relationships, using JxBrowser and D3js.
 
 ## Build Commands
 
-```bash
-# Build the JAR
-mvn clean package
-
-# Build distribution bundle (JAR + Resource Manager descriptor ZIP)
-./build_dist.sh
-```
+- build JAR (for testing): `mvn clean package`
+- build bundle (for distribution): `./build_dist.sh`
 
 ## Development Setup
 
@@ -25,11 +20,14 @@ mvn clean package
 ## Architecture
 
 ### Plugin Lifecycle
+
 `VisualizerPlugin` (extends `com.nomagic.magicdraw.plugins.Plugin`) is the entry point. On `init()`, it:
+
 1. Registers custom diagram types via `Application.getInstance().addNewDiagramType()`
 2. Configures diagram ownership contexts (what containers can hold the diagram)
 
 ### Diagram System
+
 The plugin uses MagicDraw's **NonSymbolDiagram** architecture (diagrams without UML symbol manipulation):
 
 - `VisualizerDiagramDescriptor` - Abstract base extending `NonSymbolDiagramDescriptor<JComponent>`
@@ -40,12 +38,14 @@ The plugin uses MagicDraw's **NonSymbolDiagram** architecture (diagrams without 
   - Adjacency matrix computation from UML relationships
 
 ### Adding New Diagram Types
+
 1. Create a descriptor class extending `VisualizerDiagramDescriptor`
 2. Create a content class implementing `NonSymbolDiagramContent<JComponent>`
 3. Register in `VisualizerPlugin.registerDiagrams()`
 4. Add context types in `VisualizerContextTypesConfigurator.configure()`
 
 ### Metacrawler Service
+
 `MetacrawlerService` provides JMI-based metamodel traversal to discover element properties and relationships. Uses caching to avoid repeated metamodel introspection.
 
 ## Key MagicDraw API Patterns
@@ -58,5 +58,6 @@ The plugin uses MagicDraw's **NonSymbolDiagram** architecture (diagrams without 
 ## Distribution
 
 The plugin uses MagicDraw's Resource Manager format:
+
 - Plugin ID: `com.jonbackhaus.visualizer`
 - Output: `dist/visualizer-plugin-v{VERSION}.zip`
