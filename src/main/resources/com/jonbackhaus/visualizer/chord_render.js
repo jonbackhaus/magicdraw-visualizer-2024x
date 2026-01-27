@@ -2,6 +2,17 @@
  * D3 Chord Diagram Renderer
  */
 
+// Check if D3 is available
+if (typeof d3 === 'undefined') {
+    console.error('D3.js is not loaded! Chart will not render.');
+    document.getElementById('chart').innerHTML =
+        '<div style="padding: 20px; color: #c00; font-size: 14px;">' +
+        'Error: D3.js library failed to load. Please check your network connection.' +
+        '</div>';
+} else {
+    console.log('D3.js loaded successfully, version: ' + d3.version);
+}
+
 const width = window.innerWidth;
 const height = window.innerHeight;
 const outerRadius = Math.min(width, height) * 0.5 - 40;
@@ -35,49 +46,85 @@ const svg = d3.select("#chart").append("svg")
  * @param {Array<string>} data.names - Labels for each index.
  */
 window.updateDiagram = function(data) {
-    const { matrix, names } = data;
+    console.log('updateDiagram called with data:', JSON.stringify(data).substring(0, 200) + '...');
 
-    svg.selectAll("*").remove();
+    try {
+        // Validate D3 is available
+        if (typeof d3 === 'undefined') {
+            throw new Error('D3.js is not available');
+        }
 
-    const chords = chord(matrix);
+        const { matrix, names } = data;
 
-    const group = svg.append("g")
-      .selectAll("g")
-      .data(chords.groups)
-      .join("g");
+        // Validate data
+        if (!matrix || !Array.isArray(matrix)) {
+            throw new Error('Invalid matrix data: ' + typeof matrix);
+        }
+        if (!names || !Array.isArray(names)) {
+            throw new Error('Invalid names data: ' + typeof names);
+        }
+        if (matrix.length === 0) {
+            throw new Error('Matrix is empty');
+        }
+        if (matrix.length !== names.length) {
+            throw new Error('Matrix size (' + matrix.length + ') does not match names length (' + names.length + ')');
+        }
 
-    group.append("path")
-        .attr("fill", d => color(d.index))
-        .attr("stroke", d => d3.rgb(color(d.index)).darker())
-        .attr("d", arc);
+        console.log('Data validated: ' + names.length + ' elements, matrix size ' + matrix.length + 'x' + matrix[0].length);
 
-    group.append("title")
-        .text(d => `${names[d.index]}\n${formatValue(d.value)}`);
+        svg.selectAll("*").remove();
 
-    const ticks = group.selectAll("g")
-      .data(d => groupTicks(d, 1e3))
-      .join("g")
-        .attr("transform", d => `rotate(${d.angle * 180 / Math.PI - 90}) translate(${outerRadius},0)`);
+        const chords = chord(matrix);
+        console.log('Chords computed: ' + chords.length + ' chords, ' + chords.groups.length + ' groups');
 
-    ticks.append("line")
-        .attr("stroke", "currentColor")
-        .attr("x2", 6);
+        const group = svg.append("g")
+          .selectAll("g")
+          .data(chords.groups)
+          .join("g");
 
-    ticks.append("text")
-        .attr("x", 8)
-        .attr("dy", "0.35em")
-        .attr("transform", d => d.angle > Math.PI ? "rotate(180) translate(-16)" : null)
-        .attr("text-anchor", d => d.angle > Math.PI ? "end" : null)
-        .text(d => formatValue(d.value));
+        group.append("path")
+            .attr("fill", d => color(d.index))
+            .attr("stroke", d => d3.rgb(color(d.index)).darker())
+            .attr("d", arc);
 
-    svg.append("g")
-        .attr("fill-opacity", 0.67)
-      .selectAll("path")
-      .data(chords)
-      .join("path")
-        .attr("d", ribbon)
-        .attr("fill", d => color(d.target.index))
-        .attr("stroke", d => d3.rgb(color(d.target.index)).darker());
+        group.append("title")
+            .text(d => `${names[d.index]}\n${formatValue(d.value)}`);
+
+        const ticks = group.selectAll("g")
+          .data(d => groupTicks(d, 1e3))
+          .join("g")
+            .attr("transform", d => `rotate(${d.angle * 180 / Math.PI - 90}) translate(${outerRadius},0)`);
+
+        ticks.append("line")
+            .attr("stroke", "currentColor")
+            .attr("x2", 6);
+
+        ticks.append("text")
+            .attr("x", 8)
+            .attr("dy", "0.35em")
+            .attr("transform", d => d.angle > Math.PI ? "rotate(180) translate(-16)" : null)
+            .attr("text-anchor", d => d.angle > Math.PI ? "end" : null)
+            .text(d => formatValue(d.value));
+
+        svg.append("g")
+            .attr("fill-opacity", 0.67)
+          .selectAll("path")
+          .data(chords)
+          .join("path")
+            .attr("d", ribbon)
+            .attr("fill", d => color(d.target.index))
+            .attr("stroke", d => d3.rgb(color(d.target.index)).darker());
+
+        console.log('Diagram rendered successfully');
+    } catch (error) {
+        console.error('Error rendering diagram:', error.message);
+        console.error('Stack trace:', error.stack);
+        // Display error in the chart div
+        document.getElementById('chart').innerHTML =
+            '<div style="padding: 20px; color: #c00; font-size: 14px;">' +
+            '<strong>Rendering Error:</strong> ' + error.message +
+            '</div>';
+    }
 };
 
 function groupTicks(d, step) {
@@ -86,6 +133,9 @@ function groupTicks(d, step) {
     return {value: value, angle: value * k + d.startAngle};
   });
 }
+
+// Log when script is loaded
+console.log('chord_render.js loaded successfully');
 
 // Initial draw with sample data
 const sampleData = {
