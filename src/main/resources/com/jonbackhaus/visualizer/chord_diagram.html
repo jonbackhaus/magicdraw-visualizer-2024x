@@ -3,19 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Chord Diagram</title>
-    <script src="https://d3js.org/d3.v7.min.js" onerror="handleD3LoadError()"></script>
-    <script>
-        function handleD3LoadError() {
-            console.error('Failed to load D3.js from CDN');
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('chart').innerHTML =
-                    '<div style="padding: 20px; color: #c00; font-size: 14px;">' +
-                    '<strong>Error:</strong> Failed to load D3.js library from CDN.<br>' +
-                    'Please check your network connection or firewall settings.' +
-                    '</div>';
-            });
-        }
-    </script>
+    <!-- D3_SCRIPT_PLACEHOLDER -->
     <style>
         body {
             font-family: sans-serif;
@@ -35,10 +23,20 @@
         .ribbons {
             fill-opacity: 0.67;
         }
+        .loading-message {
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        .error-message {
+            padding: 20px;
+            color: #c00;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <div id="chart"></div>
-    <script src="chord_render.js"></script>
+    <div id="chart"><div class="loading-message">Loading diagram...</div></div>
+    <!-- CHORD_RENDER_SCRIPT_PLACEHOLDER -->
 </body>
 </html>

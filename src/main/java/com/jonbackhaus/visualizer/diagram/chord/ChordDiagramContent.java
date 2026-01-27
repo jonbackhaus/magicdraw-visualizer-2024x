@@ -21,10 +21,11 @@ import com.google.gson.JsonObject;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.util.Collection;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -46,6 +47,7 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
     private Browser browser;
     private BrowserView browserView;
     private volatile boolean htmlLoaded = false;
+    private volatile String preparedHtml = null;
 
     public ChordDiagramContent(DiagramPresentationElement diagram) {
         System.out.println(LOG_PREFIX + "ChordDiagramContent constructor called");
@@ -72,9 +74,25 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
         // Listen for navigation completion to know when HTML is fully loaded
         browser.navigation().on(NavigationFinished.class, event -> {
-            System.out.println(LOG_PREFIX + "NavigationFinished event received, URL: " + event.url());
+            String url = event.url();
+            System.out.println(LOG_PREFIX + "NavigationFinished event received, URL: " + url);
+
+            // Check if this is just the about:blank page (initial frame setup)
+            if ("about:blank".equals(url)) {
+                System.out.println(LOG_PREFIX + "about:blank loaded, now loading prepared HTML");
+                // Now that frame is ready, load our prepared HTML
+                if (preparedHtml != null) {
+                    browser.mainFrame().ifPresent(frame -> {
+                        System.out.println(LOG_PREFIX + "Loading prepared HTML into frame");
+                        frame.loadHtml(preparedHtml);
+                    });
+                }
+                return;
+            }
+
+            // This is the actual content loaded
             htmlLoaded = true;
-            System.out.println(LOG_PREFIX + "HTML fully loaded, triggering initial refresh");
+            System.out.println(LOG_PREFIX + "HTML fully loaded, injecting console bridge and triggering refresh");
 
             // Inject Java-to-JS bridge for console message capture
             browser.mainFrame().ifPresent(frame -> {
@@ -91,6 +109,11 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
                         "  window.javaConsole.error(msg); origError.apply(console, arguments); };"
                     );
                 }
+
+                // Diagnostic: Check if D3 and updateDiagram are available
+                Object d3Check = frame.executeJavaScript("typeof d3");
+                Object fnCheck = frame.executeJavaScript("typeof window.updateDiagram");
+                System.out.println(LOG_PREFIX + "Diagnostic - d3 type: " + d3Check + ", updateDiagram type: " + fnCheck);
             });
 
             SwingUtilities.invokeLater(this::refreshDiagram);
@@ -218,11 +241,25 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             Element node = elements.get(i);
             // Snapshot collection to avoid ConcurrentModificationException
             Object[] relationships = node.get_relationshipOfRelatedElement().toArray();
+
+            // Diagnostic logging for relationship discovery
+            System.out.println(LOG_PREFIX + "Element '" + names.get(i) + "' has " +
+                relationships.length + " relationships via get_relationshipOfRelatedElement()");
+
+            int elementRelCount = 0;
             for (Object relObj : relationships) {
-                if (!(relObj instanceof Relationship)) continue;
+                if (!(relObj instanceof Relationship)) {
+                    System.out.println(LOG_PREFIX + "  - Skipping non-Relationship object: " +
+                        (relObj != null ? relObj.getClass().getSimpleName() : "null"));
+                    continue;
+                }
                 Relationship rel = (Relationship) relObj;
+                String relType = ((BaseElement) rel).getHumanType();
                 // Snapshot related elements as well
                 Object[] relatedArray = rel.getRelatedElement().toArray();
+                System.out.println(LOG_PREFIX + "  - Relationship type: " + relType +
+                    ", related elements: " + relatedArray.length);
+
                 for (Object targetObj : relatedArray) {
                     if (!(targetObj instanceof Element)) continue;
                     Element target = (Element) targetObj;
@@ -232,8 +269,18 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
                     if (j != -1) {
                         matrix[i][j] += 1.0;
                         totalRelationships++;
+                        elementRelCount++;
+                        System.out.println(LOG_PREFIX + "    -> Found connection to '" + names.get(j) + "'");
+                    } else {
+                        // Target exists but is not in our filtered element list
+                        String targetName = RepresentationTextCreator.getRepresentedText((BaseElement) target);
+                        System.out.println(LOG_PREFIX + "    -> Target '" + targetName +
+                            "' not in filtered elements (not counted)");
                     }
                 }
+            }
+            if (elementRelCount == 0 && relationships.length > 0) {
+                System.out.println(LOG_PREFIX + "  (no connections to other elements in the filtered set)");
             }
         }
 
@@ -281,12 +328,75 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
     private void loadHtml() {
         System.out.println(LOG_PREFIX + "loadHtml() called");
-        URL url = getClass().getResource("/com/jonbackhaus/visualizer/chord_diagram.html");
-        if (url != null) {
-            System.out.println(LOG_PREFIX + "Loading HTML from: " + url.toString());
-            browser.navigation().loadUrl(url.toString());
-        } else {
-            System.out.println(LOG_PREFIX + "ERROR: chord_diagram.html resource not found!");
+        try {
+            // Read all resources as strings
+            String html = readResource("/com/jonbackhaus/visualizer/chord_diagram.html");
+            String d3js = readResource("/com/jonbackhaus/visualizer/d3.v7.min.js");
+            String chordRenderJs = readResource("/com/jonbackhaus/visualizer/chord_render.js");
+
+            if (html == null) {
+                System.out.println(LOG_PREFIX + "ERROR: chord_diagram.html resource not found!");
+                return;
+            }
+            if (d3js == null) {
+                System.out.println(LOG_PREFIX + "ERROR: d3.v7.min.js resource not found!");
+                return;
+            }
+            if (chordRenderJs == null) {
+                System.out.println(LOG_PREFIX + "ERROR: chord_render.js resource not found!");
+                return;
+            }
+
+            System.out.println(LOG_PREFIX + "Resources loaded - HTML: " + html.length() +
+                " bytes, D3: " + d3js.length() + " bytes, ChordRender: " + chordRenderJs.length() + " bytes");
+
+            // Replace placeholders with inline scripts
+            String d3Script = "<script>\n" + d3js + "\n</script>";
+            String chordRenderScript = "<script>\n" + chordRenderJs + "\n</script>";
+
+            html = html.replace("<!-- D3_SCRIPT_PLACEHOLDER -->", d3Script);
+            html = html.replace("<!-- CHORD_RENDER_SCRIPT_PLACEHOLDER -->", chordRenderScript);
+
+            System.out.println(LOG_PREFIX + "Final HTML size: " + html.length() + " bytes");
+
+            // Store the prepared HTML
+            this.preparedHtml = html;
+
+            // Load the HTML content directly (not via URL)
+            browser.mainFrame().ifPresentOrElse(
+                frame -> {
+                    System.out.println(LOG_PREFIX + "Loading HTML content into browser frame");
+                    frame.loadHtml(preparedHtml);
+                },
+                () -> {
+                    // If main frame not available yet, load about:blank first to create the frame
+                    // The NavigationFinished handler will then load our prepared HTML
+                    System.out.println(LOG_PREFIX + "Main frame not available, loading about:blank first");
+                    browser.navigation().loadUrl("about:blank");
+                }
+            );
+        } catch (Exception e) {
+            System.out.println(LOG_PREFIX + "ERROR loading HTML: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String readResource(String path) {
+        try (InputStream is = getClass().getResourceAsStream(path)) {
+            if (is == null) {
+                return null;
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line).append("\n");
+                }
+                return sb.toString();
+            }
+        } catch (IOException e) {
+            System.out.println(LOG_PREFIX + "ERROR reading resource " + path + ": " + e.getMessage());
+            return null;
         }
     }
 
