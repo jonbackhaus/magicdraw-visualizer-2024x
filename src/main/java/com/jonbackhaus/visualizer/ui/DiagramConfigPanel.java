@@ -5,87 +5,148 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 
 /**
- * Custom UI panel for diagram configuration, adapted from Dependency Matrix UI.
+ * Configuration panel for Chord Diagram, styled after MagicDraw's Relation Map.
  */
 public class DiagramConfigPanel extends JPanel {
 
     private JComboBox<String> elementTypeCombo;
-    private JTextField scopeField;
-    private JComboBox<String> dependencyCriteriaCombo;
-    private JComboBox<String> directionCombo;
-    private JCheckBox showElementsCheckbox;
-    private JTextField filterField;
+    private JCheckBox includeSubtypesCheckbox;
+    private JComboBox<String> relationCriteriaCombo;
+    private JCheckBox showImpliedCheckbox;
+    private JSpinner depthSpinner;
+    private JComboBox<String> layoutCombo;
     private JButton refreshButton;
 
     public DiagramConfigPanel() {
         setLayout(new GridBagLayout());
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setPreferredSize(new Dimension(280, 400));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        int row = 0;
+
+        // Section: Elements
         gbc.gridx = 0;
-        gbc.gridy = 0;
+        gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel elementsLabel = new JLabel("Elements");
+        elementsLabel.setFont(elementsLabel.getFont().deriveFont(Font.BOLD));
+        add(elementsLabel, gbc);
+        gbc.gridwidth = 1;
 
         // Element Type
+        gbc.gridx = 0;
+        gbc.gridy = row;
         add(new JLabel("Element Type:"), gbc);
         gbc.gridx = 1;
-        elementTypeCombo = new JComboBox<>(new String[] { "Class", "Component", "Requirement", "Any" });
+        elementTypeCombo = new JComboBox<>(new String[] {
+            "Any", "Class", "Block", "Component", "Requirement", "Package", "Interface"
+        });
+        elementTypeCombo.setSelectedItem("Any");
         add(elementTypeCombo, gbc);
+        row++;
 
-        // Scope
+        // Include Subtypes
         gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Scope (Optional):"), gbc);
-        gbc.gridx = 1;
-        scopeField = new JTextField(20);
-        add(scopeField, gbc);
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        includeSubtypesCheckbox = new JCheckBox("Include Subtypes");
+        includeSubtypesCheckbox.setSelected(true);
+        add(includeSubtypesCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
 
-        // Dependency Criteria
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Dependency Criteria:"), gbc);
-        gbc.gridx = 1;
-        dependencyCriteriaCombo = new JComboBox<>(new String[] { "Dependency", "Realization", "Usage", "Any" });
-        add(dependencyCriteriaCombo, gbc);
+        // Spacer
+        gbc.gridy = row++;
+        add(Box.createVerticalStrut(10), gbc);
 
-        // Direction
+        // Section: Relations
         gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Direction:"), gbc);
-        gbc.gridx = 1;
-        directionCombo = new JComboBox<>(new String[] { "Source to Target", "Target to Source", "Both" });
-        directionCombo.setSelectedItem("Both");
-        add(directionCombo, gbc);
+        gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel relationsLabel = new JLabel("Relations");
+        relationsLabel.setFont(relationsLabel.getFont().deriveFont(Font.BOLD));
+        add(relationsLabel, gbc);
+        gbc.gridwidth = 1;
 
-        // Show Elements
+        // Relation Criteria
         gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Show Elements:"), gbc);
+        gbc.gridy = row;
+        add(new JLabel("Criteria:"), gbc);
         gbc.gridx = 1;
-        showElementsCheckbox = new JCheckBox();
-        showElementsCheckbox.setSelected(true);
-        add(showElementsCheckbox, gbc);
+        relationCriteriaCombo = new JComboBox<>(new String[] {
+            "Any", "Dependency", "Association", "Generalization", "Realization", "Usage"
+        });
+        relationCriteriaCombo.setSelectedItem("Any");
+        add(relationCriteriaCombo, gbc);
+        row++;
 
-        // Filter
+        // Show Implied
         gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Filter:"), gbc);
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        showImpliedCheckbox = new JCheckBox("Show Implied Relationships");
+        showImpliedCheckbox.setSelected(false);
+        add(showImpliedCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Spacer
+        gbc.gridy = row++;
+        add(Box.createVerticalStrut(10), gbc);
+
+        // Section: Display
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel displayLabel = new JLabel("Display");
+        displayLabel.setFont(displayLabel.getFont().deriveFont(Font.BOLD));
+        add(displayLabel, gbc);
+        gbc.gridwidth = 1;
+
+        // Depth
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        add(new JLabel("Depth:"), gbc);
         gbc.gridx = 1;
-        filterField = new JTextField(20);
-        add(filterField, gbc);
+        depthSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+        add(depthSpinner, gbc);
+        row++;
+
+        // Layout
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        add(new JLabel("Layout:"), gbc);
+        gbc.gridx = 1;
+        layoutCombo = new JComboBox<>(new String[] { "Chord", "Radial" });
+        layoutCombo.setSelectedItem("Chord");
+        add(layoutCombo, gbc);
+        row++;
+
+        // Spacer
+        gbc.gridy = row++;
+        add(Box.createVerticalStrut(15), gbc);
 
         // Refresh Button
         gbc.gridx = 0;
-        gbc.gridy++;
+        gbc.gridy = row;
         gbc.gridwidth = 2;
-        refreshButton = new JButton("Refresh Diagram");
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        refreshButton = new JButton("Refresh");
+        refreshButton.setPreferredSize(new Dimension(100, 28));
         add(refreshButton, gbc);
-        gbc.gridwidth = 1;
+        row++;
 
         // Push everything up
-        gbc.gridy++;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
         gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
         add(new JPanel(), gbc);
     }
 
@@ -94,24 +155,24 @@ public class DiagramConfigPanel extends JPanel {
         return (String) elementTypeCombo.getSelectedItem();
     }
 
-    public String getScope() {
-        return scopeField.getText();
+    public boolean isIncludeSubtypes() {
+        return includeSubtypesCheckbox.isSelected();
     }
 
-    public String getDependencyCriteria() {
-        return (String) dependencyCriteriaCombo.getSelectedItem();
+    public String getRelationCriteria() {
+        return (String) relationCriteriaCombo.getSelectedItem();
     }
 
-    public String getDirection() {
-        return (String) directionCombo.getSelectedItem();
+    public boolean isShowImplied() {
+        return showImpliedCheckbox.isSelected();
     }
 
-    public boolean isShowElements() {
-        return showElementsCheckbox.isSelected();
+    public int getDepth() {
+        return (Integer) depthSpinner.getValue();
     }
 
-    public String getFilter() {
-        return filterField.getText();
+    public String getLayoutStyle() {
+        return (String) layoutCombo.getSelectedItem();
     }
 
     public void addRefreshListener(ActionListener listener) {

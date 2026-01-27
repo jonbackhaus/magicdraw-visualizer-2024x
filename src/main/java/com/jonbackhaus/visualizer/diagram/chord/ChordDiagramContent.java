@@ -11,6 +11,9 @@ import com.nomagic.magicdraw.uml.RepresentationTextCreator;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Namespace;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Relationship;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package;
+import com.nomagic.uml2.ext.magicdraw.classes.mdinterfaces.Interface;
+import com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
 import com.nomagic.magicdraw.uml.BaseElement;
 import com.nomagic.magicdraw.uml.diagrams.NonSymbolDiagramContent;
 import com.nomagic.magicdraw.uml.symbols.DiagramPresentationElement;
@@ -75,7 +78,9 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         // Listen for navigation completion to know when HTML is fully loaded
         browser.navigation().on(NavigationFinished.class, event -> {
             String url = event.url();
-            System.out.println(LOG_PREFIX + "NavigationFinished event received, URL: " + url);
+            // Truncate data URLs to avoid logging entire HTML content
+            String logUrl = url.startsWith("data:") ? "data:text/html... (" + url.length() + " chars)" : url;
+            System.out.println(LOG_PREFIX + "NavigationFinished event received, URL: " + logUrl);
 
             // Check if this is just the about:blank page (initial frame setup)
             if ("about:blank".equals(url)) {
@@ -200,9 +205,8 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         System.out.println(LOG_PREFIX + "Container: " + container.getName());
 
         String elementType = configPanel.getElementType();
-        System.out.println(LOG_PREFIX + "Element type filter: " + elementType);
-        // TODO: Use criteria for relationship filtering via MetacrawlerService
-        // String criteria = configPanel.getDependencyCriteria();
+        boolean includeSubtypes = configPanel.isIncludeSubtypes();
+        System.out.println(LOG_PREFIX + "Element type filter: " + elementType + ", includeSubtypes: " + includeSubtypes);
 
         // 1. Collect elements of the specified type in the container
         // Snapshot collection to avoid ConcurrentModificationException
@@ -210,12 +214,7 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         List<Element> elements = java.util.Arrays.stream(ownedElements)
                 .filter(e -> e instanceof Element)
                 .map(e -> (Element) e)
-                .filter(e -> {
-                    if ("Any".equals(elementType))
-                        return true;
-                    // Use getHumanType() from BaseElement
-                    return ((BaseElement) e).getHumanType().contains(elementType);
-                })
+                .filter(e -> matchesElementType(e, elementType, includeSubtypes))
                 .collect(Collectors.toList());
 
         System.out.println(LOG_PREFIX + "Found " + elements.size() + " elements matching filter");
@@ -324,6 +323,45 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             },
             () -> System.out.println(LOG_PREFIX + "WARNING: Cannot show message, main frame not available")
         );
+    }
+
+    /**
+     * Check if an element matches the specified element type filter.
+     * When includeSubtypes is true, also matches stereotyped subtypes
+     * (e.g., SysML Blocks are stereotyped Classes).
+     */
+    private boolean matchesElementType(Element e, String elementType, boolean includeSubtypes) {
+        if ("Any".equals(elementType)) {
+            return true;
+        }
+
+        String humanType = ((BaseElement) e).getHumanType();
+
+        // Exact match on humanType
+        if (humanType.equals(elementType)) {
+            return true;
+        }
+
+        // If includeSubtypes, check metaclass hierarchy
+        if (includeSubtypes) {
+            switch (elementType) {
+                case "Class":
+                    // SysML Blocks, ConstraintBlocks, etc. are stereotyped Classes
+                    return e instanceof com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Class;
+                case "Package":
+                    // Profiles, Models are stereotyped Packages
+                    return e instanceof Package;
+                case "Interface":
+                    return e instanceof Interface;
+                case "Component":
+                    return e instanceof com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
+                default:
+                    // For other types, fall back to humanType contains check
+                    return humanType.contains(elementType);
+            }
+        }
+
+        return false;
     }
 
     private void loadHtml() {
