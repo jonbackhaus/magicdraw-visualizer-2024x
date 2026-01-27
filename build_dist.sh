@@ -8,7 +8,7 @@ JAR_NAME="magicdraw-visualizer-${VERSION}.jar"
 DIST_DIR="dist"
 DIST_DATE=$(date +%Y-%m-%d)
 TEMP_DIR="dist/temp"
-ZIP_NAME="visualizer-plugin-v${VERSION}.zip"
+ZIP_NAME="visualizer-plugin-2024x-v${VERSION}.zip"
 MDR_NAME="MDR_Plugin_Visualizer_v${VERSION}_descriptor.xml"
 
 echo "Building Visualizer Distribution Bundle v$VERSION..."
