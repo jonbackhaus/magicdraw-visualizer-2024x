@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MagicDraw Visualizer is a Java plugin for MagicDraw/Cameo 2024x that provides custom non-symbol diagrams. The initial implementation includes a Chord Diagram for visualizing element relationships.
+MagicDraw Visualizer is a Java plugin for MagicDraw/Cameo 2024x that provides custom non-symbol diagrams. The initial implementation includes a Chord Diagram for visualizing element relationships, using JxBrowser and D3js.
 
 ## Build Commands
 
