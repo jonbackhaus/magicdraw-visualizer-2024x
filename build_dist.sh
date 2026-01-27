@@ -34,7 +34,7 @@ cp "src/main/resources/META-INF/plugin.xml" "$TEMP_DIR/plugins/$PLUGIN_ID/"
 # 4. Generate Resource Manager Descriptor
 cat <<EOF > "$TEMP_DIR/data/resourcemanager/$MDR_NAME"
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<resourceDescriptor critical="false" date="$DIST_DATE" description="Visualizer plugin for MagicDraw/Cameo. Implements custom non-symbol diagrams including Chord Diagram." id="$PLUGIN_UID" name="Visualizer Plugin" mdVersionMax="higher" mxVersionMin="17.0" restartMagicdraw="true" type="Plugin">
+<resourceDescriptor critical="false" date="$DIST_DATE" description="Visualizer plugin for MagicDraw/Cameo. Implements custom non-symbol diagrams including Chord Diagram." id="$PLUGIN_UID" name="Visualizer Plugin" mdVersionMax="higher" mdVersionMin="17.0" restartMagicdraw="true" type="Plugin">
     <version human="$VERSION" internal="1" resource="1" />
     <provider name="Jon Backhaus" homePage="https://github.com/jonbackhaus/magicdraw-visualizer" />
     <edition>Reader</edition>
