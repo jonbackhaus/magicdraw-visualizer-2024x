@@ -16,10 +16,25 @@ if (typeof d3 === 'undefined') {
 const color = d3.scaleOrdinal(d3.schemeCategory10);
 
 /**
+ * Navigate to an element in MagicDraw's containment tree.
+ */
+function navigateToElement(index) {
+    if (window.javaNavigation && typeof window.javaNavigation.selectElement === 'function') {
+        console.log('Navigating to element index: ' + index);
+        window.javaNavigation.selectElement(index);
+    } else {
+        console.log('Java navigation bridge not available');
+    }
+}
+
+/**
  * Updates the diagram with new data.
  * @param {Object} data - Adjacency matrix and labels.
  * @param {Array<Array<number>>} data.matrix - Square Adjacency Matrix.
  * @param {Array<string>} data.names - Labels for each index.
+ * @param {Object} data.options - Display options.
+ * @param {boolean} data.options.showLabels - Whether to show labels around arcs.
+ * @param {boolean} data.options.showLegend - Whether to show the legend.
  */
 window.updateDiagram = function(data) {
     console.log('updateDiagram called with data:', JSON.stringify(data).substring(0, 200) + '...');
@@ -30,7 +45,9 @@ window.updateDiagram = function(data) {
             throw new Error('D3.js is not available');
         }
 
-        const { matrix, names } = data;
+        const { matrix, names, options = {} } = data;
+        const showLabels = options.showLabels !== false; // Default true
+        const showLegend = options.showLegend === true;  // Default false
 
         // Validate data
         if (!matrix || !Array.isArray(matrix)) {
@@ -46,7 +63,7 @@ window.updateDiagram = function(data) {
             throw new Error('Matrix size (' + matrix.length + ') does not match names length (' + names.length + ')');
         }
 
-        console.log('Data validated: ' + names.length + ' elements, matrix size ' + matrix.length + 'x' + matrix[0].length);
+        console.log('Data validated: ' + names.length + ' elements, showLabels=' + showLabels + ', showLegend=' + showLegend);
 
         // Clear the chart div completely (removes loading message)
         const chartDiv = document.getElementById('chart');
@@ -55,9 +72,10 @@ window.updateDiagram = function(data) {
         // Calculate dimensions
         const width = chartDiv.clientWidth || window.innerWidth;
         const height = chartDiv.clientHeight || window.innerHeight;
-        const legendWidth = 200;
+        const legendWidth = showLegend ? 200 : 0;
         const diagramWidth = width - legendWidth;
-        const outerRadius = Math.min(diagramWidth, height) * 0.5 - 60;
+        const labelPadding = showLabels ? 80 : 20;
+        const outerRadius = Math.min(diagramWidth, height) * 0.5 - labelPadding;
         const innerRadius = outerRadius - 30;
 
         // Create chord layout
@@ -94,24 +112,36 @@ window.updateDiagram = function(data) {
         group.append("path")
             .attr("fill", d => color(d.index))
             .attr("stroke", d => d3.rgb(color(d.index)).darker())
-            .attr("d", arc);
+            .attr("d", arc)
+            .style("cursor", "pointer")
+            .on("click", function(event, d) {
+                navigateToElement(d.index);
+            });
 
         group.append("title")
-            .text(d => `${names[d.index]}: ${d.value} connections`);
+            .text(d => `${names[d.index]}: ${d.value} connections\nClick to navigate`);
 
-        // Add labels around the arcs
-        group.append("text")
-            .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
-            .attr("dy", "0.35em")
-            .attr("transform", d => `
-                rotate(${(d.angle * 180 / Math.PI - 90)})
-                translate(${outerRadius + 10})
-                ${d.angle > Math.PI ? "rotate(180)" : ""}
-            `)
-            .attr("text-anchor", d => d.angle > Math.PI ? "end" : "start")
-            .text(d => names[d.index])
-            .style("font-size", "11px")
-            .style("fill", "#333");
+        // Add labels around the arcs (if enabled)
+        if (showLabels) {
+            group.append("text")
+                .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+                .attr("dy", "0.35em")
+                .attr("transform", d => `
+                    rotate(${(d.angle * 180 / Math.PI - 90)})
+                    translate(${outerRadius + 10})
+                    ${d.angle > Math.PI ? "rotate(180)" : ""}
+                `)
+                .attr("text-anchor", d => d.angle > Math.PI ? "end" : "start")
+                .text(d => names[d.index].length > 20 ? names[d.index].substring(0, 17) + '...' : names[d.index])
+                .style("font-size", "11px")
+                .style("fill", "#333")
+                .style("cursor", "pointer")
+                .on("click", function(event, d) {
+                    navigateToElement(d.index);
+                })
+              .append("title")
+                .text(d => `${names[d.index]}\nClick to navigate`);
+        }
 
         // Draw ribbons (chords)
         diagramG.append("g")
@@ -125,34 +155,44 @@ window.updateDiagram = function(data) {
           .append("title")
             .text(d => `${names[d.source.index]} \u2194 ${names[d.target.index]}: ${d.source.value}`);
 
-        // Create legend
-        const legend = svg.append("g")
-            .attr("transform", `translate(${diagramWidth + 20}, 30)`);
+        // Create legend (if enabled)
+        if (showLegend) {
+            const legend = svg.append("g")
+                .attr("transform", `translate(${diagramWidth + 20}, 30)`);
 
-        legend.append("text")
-            .attr("x", 0)
-            .attr("y", 0)
-            .style("font-weight", "bold")
-            .style("font-size", "12px")
-            .text("Legend");
+            legend.append("text")
+                .attr("x", 0)
+                .attr("y", 0)
+                .style("font-weight", "bold")
+                .style("font-size", "12px")
+                .text("Legend");
 
-        const legendItems = legend.selectAll(".legend-item")
-            .data(names)
-            .join("g")
-            .attr("class", "legend-item")
-            .attr("transform", (d, i) => `translate(0, ${20 + i * 20})`);
+            const legendItems = legend.selectAll(".legend-item")
+                .data(names)
+                .join("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(0, ${20 + i * 20})`)
+                .style("cursor", "pointer")
+                .on("click", function(event, d) {
+                    const index = names.indexOf(d);
+                    navigateToElement(index);
+                });
 
-        legendItems.append("rect")
-            .attr("width", 14)
-            .attr("height", 14)
-            .attr("fill", (d, i) => color(i))
-            .attr("stroke", (d, i) => d3.rgb(color(i)).darker());
+            legendItems.append("rect")
+                .attr("width", 14)
+                .attr("height", 14)
+                .attr("fill", (d, i) => color(i))
+                .attr("stroke", (d, i) => d3.rgb(color(i)).darker());
 
-        legendItems.append("text")
-            .attr("x", 20)
-            .attr("y", 11)
-            .style("font-size", "11px")
-            .text(d => d.length > 25 ? d.substring(0, 22) + '...' : d);
+            legendItems.append("text")
+                .attr("x", 20)
+                .attr("y", 11)
+                .style("font-size", "11px")
+                .text(d => d.length > 25 ? d.substring(0, 22) + '...' : d);
+
+            legendItems.append("title")
+                .text(d => d + '\nClick to navigate');
+        }
 
         console.log('Diagram rendered successfully');
     } catch (error) {

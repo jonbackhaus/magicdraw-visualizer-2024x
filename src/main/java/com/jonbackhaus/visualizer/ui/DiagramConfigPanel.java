@@ -1,5 +1,10 @@
 package com.jonbackhaus.visualizer.ui;
 
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Namespace;
+import com.nomagic.magicdraw.uml.RepresentationTextCreator;
+import com.nomagic.magicdraw.uml.BaseElement;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
@@ -9,17 +14,25 @@ import java.awt.event.ActionListener;
  */
 public class DiagramConfigPanel extends JPanel {
 
+    private JTextField contextField;
+    private JButton selectContextButton;
+    private JCheckBox recursiveCheckbox;
     private JComboBox<String> elementTypeCombo;
     private JCheckBox includeSubtypesCheckbox;
     private JComboBox<String> relationCriteriaCombo;
     private JCheckBox showImpliedCheckbox;
     private JSpinner depthSpinner;
+    private JCheckBox showLegendCheckbox;
+    private JCheckBox showLabelsCheckbox;
     private JButton refreshButton;
+
+    private Namespace contextElement;
+    private Namespace defaultContext;
 
     public DiagramConfigPanel() {
         setLayout(new GridBagLayout());
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        setPreferredSize(new Dimension(280, 400));
+        setPreferredSize(new Dimension(280, 500));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -27,6 +40,46 @@ public class DiagramConfigPanel extends JPanel {
         gbc.anchor = GridBagConstraints.WEST;
 
         int row = 0;
+
+        // Section: Context
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel contextLabel = new JLabel("Context");
+        contextLabel.setFont(contextLabel.getFont().deriveFont(Font.BOLD));
+        add(contextLabel, gbc);
+        gbc.gridwidth = 1;
+
+        // Context selector
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 1;
+        gbc.weightx = 1.0;
+        contextField = new JTextField();
+        contextField.setEditable(false);
+        contextField.setText("(diagram owner)");
+        add(contextField, gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 0;
+        selectContextButton = new JButton("...");
+        selectContextButton.setPreferredSize(new Dimension(30, 22));
+        selectContextButton.setToolTipText("Select context element");
+        add(selectContextButton, gbc);
+        row++;
+
+        // Recursive checkbox
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        recursiveCheckbox = new JCheckBox("Include nested elements");
+        recursiveCheckbox.setSelected(false);
+        add(recursiveCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Spacer
+        gbc.gridy = row++;
+        add(Box.createVerticalStrut(10), gbc);
 
         // Section: Elements
         gbc.gridx = 0;
@@ -116,6 +169,26 @@ public class DiagramConfigPanel extends JPanel {
         add(depthSpinner, gbc);
         row++;
 
+        // Show Labels
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        showLabelsCheckbox = new JCheckBox("Show Labels");
+        showLabelsCheckbox.setSelected(true);
+        add(showLabelsCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Show Legend
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        showLegendCheckbox = new JCheckBox("Show Legend");
+        showLegendCheckbox.setSelected(false);
+        add(showLegendCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
         // Spacer
         gbc.gridy = row++;
         add(Box.createVerticalStrut(15), gbc);
@@ -139,7 +212,62 @@ public class DiagramConfigPanel extends JPanel {
         add(new JPanel(), gbc);
     }
 
+    /**
+     * Set the default context (diagram owner).
+     */
+    public void setDefaultContext(Namespace context) {
+        this.defaultContext = context;
+        if (contextElement == null) {
+            updateContextDisplay();
+        }
+    }
+
+    /**
+     * Set the context select button action.
+     */
+    public void setContextSelectAction(ActionListener listener) {
+        selectContextButton.addActionListener(listener);
+    }
+
+    /**
+     * Set the selected context element.
+     */
+    public void setContextElement(Namespace element) {
+        this.contextElement = element;
+        updateContextDisplay();
+    }
+
+    /**
+     * Clear the context override (use default).
+     */
+    public void clearContextOverride() {
+        this.contextElement = null;
+        updateContextDisplay();
+    }
+
+    private void updateContextDisplay() {
+        if (contextElement != null) {
+            contextField.setText(RepresentationTextCreator.getRepresentedText((BaseElement) contextElement));
+        } else if (defaultContext != null) {
+            contextField.setText(RepresentationTextCreator.getRepresentedText((BaseElement) defaultContext) + " (default)");
+        } else {
+            contextField.setText("(diagram owner)");
+        }
+    }
+
     // Getters for configuration values
+    public Namespace getContextElement() {
+        return contextElement != null ? contextElement : defaultContext;
+    }
+
+    public boolean isContextOverridden() {
+        return contextElement != null;
+    }
+
+    public boolean isRecursive() {
+        return recursiveCheckbox.isSelected();
+    }
+
     public String getElementType() {
         return (String) elementTypeCombo.getSelectedItem();
     }
@@ -158,6 +286,14 @@ public class DiagramConfigPanel extends JPanel {
 
     public int getDepth() {
         return (Integer) depthSpinner.getValue();
+    }
+
+    public boolean isShowLabels() {
+        return showLabelsCheckbox.isSelected();
+    }
+
+    public boolean isShowLegend() {
+        return showLegendCheckbox.isSelected();
     }
 
     public void addRefreshListener(ActionListener listener) {

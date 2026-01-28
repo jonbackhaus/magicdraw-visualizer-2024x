@@ -7,6 +7,13 @@ import com.teamdev.jxbrowser.js.JsAccessible;
 import com.teamdev.jxbrowser.js.JsObject;
 import com.teamdev.jxbrowser.navigation.event.NavigationFinished;
 import com.teamdev.jxbrowser.view.swing.BrowserView;
+import com.nomagic.magicdraw.core.Application;
+import com.nomagic.magicdraw.core.Project;
+import com.nomagic.magicdraw.ui.dialogs.MDDialogParentProvider;
+import com.nomagic.magicdraw.ui.dialogs.SelectElementInfo;
+import com.nomagic.magicdraw.ui.dialogs.SelectElementTypes;
+import com.nomagic.magicdraw.ui.dialogs.selection.ElementSelectionDlg;
+import com.nomagic.magicdraw.ui.dialogs.selection.ElementSelectionDlgFactory;
 import com.nomagic.magicdraw.uml.RepresentationTextCreator;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Namespace;
@@ -29,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -51,6 +59,9 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
     private BrowserView browserView;
     private volatile boolean htmlLoaded = false;
     private volatile String preparedHtml = null;
+
+    // Store elements for navigation
+    private List<Element> currentElements = new ArrayList<>();
 
     public ChordDiagramContent(DiagramPresentationElement diagram) {
         System.out.println(LOG_PREFIX + "ChordDiagramContent constructor called");
@@ -97,13 +108,15 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
             // This is the actual content loaded
             htmlLoaded = true;
-            System.out.println(LOG_PREFIX + "HTML fully loaded, injecting console bridge and triggering refresh");
+            System.out.println(LOG_PREFIX + "HTML fully loaded, injecting bridges and triggering refresh");
 
-            // Inject Java-to-JS bridge for console message capture
+            // Inject Java-to-JS bridges
             browser.mainFrame().ifPresent(frame -> {
                 JsObject window = frame.executeJavaScript("window");
                 if (window != null) {
                     window.putProperty("javaConsole", new JavaConsole());
+                    window.putProperty("javaNavigation", new JavaNavigation(this));
+
                     // Override console methods to forward to Java
                     frame.executeJavaScript(
                         "var origLog = console.log; console.log = function() { " +
@@ -142,6 +155,42 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         }
     }
 
+    /**
+     * Bridge class for element navigation from JavaScript.
+     */
+    public static class JavaNavigation {
+        private final ChordDiagramContent content;
+
+        public JavaNavigation(ChordDiagramContent content) {
+            this.content = content;
+        }
+
+        @JsAccessible
+        public void selectElement(int index) {
+            System.out.println(LOG_PREFIX + "JavaScript requested navigation to element index: " + index);
+            SwingUtilities.invokeLater(() -> content.navigateToElement(index));
+        }
+    }
+
+    /**
+     * Navigate to an element in the containment tree.
+     */
+    private void navigateToElement(int index) {
+        if (index < 0 || index >= currentElements.size()) {
+            System.out.println(LOG_PREFIX + "Invalid element index: " + index);
+            return;
+        }
+
+        Element element = currentElements.get(index);
+        String name = RepresentationTextCreator.getRepresentedText((BaseElement) element);
+        System.out.println(LOG_PREFIX + "Navigating to element: " + name);
+
+        Project project = Application.getInstance().getProject();
+        if (project != null && project.getBrowser() != null) {
+            project.getBrowser().getContainmentTree().openNode(element, true);
+        }
+    }
+
     private String loadLicenseKey() {
         // First try system property (allows override)
         String key = System.getProperty("jxbrowser.license.key");
@@ -170,8 +219,17 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             configPanel = new DiagramConfigPanel();
             browserView = BrowserView.newInstance(browser);
 
+            // Set default context
+            Namespace defaultContext = diagram.getDiagram().getOwner() instanceof Namespace
+                    ? (Namespace) diagram.getDiagram().getOwner()
+                    : null;
+            configPanel.setDefaultContext(defaultContext);
+
+            // Set up context selection dialog
+            configPanel.setContextSelectAction(e -> showContextSelectionDialog());
+
             splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, configPanel, browserView);
-            splitPane.setDividerLocation(300);
+            splitPane.setDividerLocation(280);
 
             configPanel.addRefreshListener(e -> {
                 System.out.println(LOG_PREFIX + "Refresh button clicked");
@@ -184,6 +242,34 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         return splitPane;
     }
 
+    /**
+     * Show dialog to select context element.
+     */
+    private void showContextSelectionDialog() {
+        Project project = Application.getInstance().getProject();
+        if (project == null) return;
+
+        java.awt.Window parent = MDDialogParentProvider.getProvider().getDialogOwner();
+        ElementSelectionDlg dlg = ElementSelectionDlgFactory.create(parent);
+
+        // Set up element types filter (allow Packages and Namespaces)
+        java.util.List<java.lang.Class<?>> includedTypes = new ArrayList<>();
+        includedTypes.add(Package.class);
+        includedTypes.add(Namespace.class);
+        SelectElementTypes types = new SelectElementTypes(null, includedTypes, null, null);
+        SelectElementInfo info = new SelectElementInfo(true, false, project.getPrimaryModel(), true);
+        ElementSelectionDlgFactory.initSingle(dlg, types, info, project.getPrimaryModel());
+
+        dlg.setVisible(true);
+
+        if (dlg.isOkClicked()) {
+            BaseElement selected = dlg.getSelectedElement();
+            if (selected instanceof Namespace) {
+                configPanel.setContextElement((Namespace) selected);
+            }
+        }
+    }
+
     private void refreshDiagram() {
         System.out.println(LOG_PREFIX + "refreshDiagram() called, htmlLoaded=" + htmlLoaded);
 
@@ -193,9 +279,7 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             return;
         }
 
-        Namespace container = diagram.getDiagram().getOwner() instanceof Namespace
-                ? (Namespace) diagram.getDiagram().getOwner()
-                : null;
+        Namespace container = configPanel.getContextElement();
         if (container == null) {
             System.out.println(LOG_PREFIX + "Container is null, cannot refresh");
             showMessageInBrowser("No valid container found for this diagram.");
@@ -206,16 +290,16 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
         String elementType = configPanel.getElementType();
         boolean includeSubtypes = configPanel.isIncludeSubtypes();
-        System.out.println(LOG_PREFIX + "Element type filter: " + elementType + ", includeSubtypes: " + includeSubtypes);
+        boolean recursive = configPanel.isRecursive();
+        boolean showLabels = configPanel.isShowLabels();
+        boolean showLegend = configPanel.isShowLegend();
+
+        System.out.println(LOG_PREFIX + "Element type filter: " + elementType +
+            ", includeSubtypes: " + includeSubtypes + ", recursive: " + recursive);
 
         // 1. Collect elements of the specified type in the container
-        // Snapshot collection to avoid ConcurrentModificationException
-        Object[] ownedElements = container.getOwnedElement().toArray();
-        List<Element> elements = java.util.Arrays.stream(ownedElements)
-                .filter(e -> e instanceof Element)
-                .map(e -> (Element) e)
-                .filter(e -> matchesElementType(e, elementType, includeSubtypes))
-                .collect(Collectors.toList());
+        List<Element> elements = collectElements(container, elementType, includeSubtypes, recursive);
+        currentElements = elements; // Store for navigation
 
         System.out.println(LOG_PREFIX + "Found " + elements.size() + " elements matching filter");
 
@@ -241,45 +325,22 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             // Snapshot collection to avoid ConcurrentModificationException
             Object[] relationships = node.get_relationshipOfRelatedElement().toArray();
 
-            // Diagnostic logging for relationship discovery
-            System.out.println(LOG_PREFIX + "Element '" + names.get(i) + "' has " +
-                relationships.length + " relationships via get_relationshipOfRelatedElement()");
-
-            int elementRelCount = 0;
             for (Object relObj : relationships) {
-                if (!(relObj instanceof Relationship)) {
-                    System.out.println(LOG_PREFIX + "  - Skipping non-Relationship object: " +
-                        (relObj != null ? relObj.getClass().getSimpleName() : "null"));
-                    continue;
-                }
+                if (!(relObj instanceof Relationship)) continue;
                 Relationship rel = (Relationship) relObj;
-                String relType = ((BaseElement) rel).getHumanType();
                 // Snapshot related elements as well
                 Object[] relatedArray = rel.getRelatedElement().toArray();
-                System.out.println(LOG_PREFIX + "  - Relationship type: " + relType +
-                    ", related elements: " + relatedArray.length);
 
                 for (Object targetObj : relatedArray) {
                     if (!(targetObj instanceof Element)) continue;
                     Element target = (Element) targetObj;
-                    if (target == node)
-                        continue;
+                    if (target == node) continue;
                     int j = elements.indexOf(target);
                     if (j != -1) {
                         matrix[i][j] += 1.0;
                         totalRelationships++;
-                        elementRelCount++;
-                        System.out.println(LOG_PREFIX + "    -> Found connection to '" + names.get(j) + "'");
-                    } else {
-                        // Target exists but is not in our filtered element list
-                        String targetName = RepresentationTextCreator.getRepresentedText((BaseElement) target);
-                        System.out.println(LOG_PREFIX + "    -> Target '" + targetName +
-                            "' not in filtered elements (not counted)");
                     }
                 }
-            }
-            if (elementRelCount == 0 && relationships.length > 0) {
-                System.out.println(LOG_PREFIX + "  (no connections to other elements in the filtered set)");
             }
         }
 
@@ -301,6 +362,12 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         }
         data.add("matrix", matrixArray);
 
+        // Add display options
+        JsonObject options = new JsonObject();
+        options.addProperty("showLabels", showLabels);
+        options.addProperty("showLegend", showLegend);
+        data.add("options", options);
+
         String json = gson.toJson(data);
         System.out.println(LOG_PREFIX + "Sending JSON to browser, length=" + json.length());
 
@@ -311,6 +378,36 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             },
             () -> System.out.println(LOG_PREFIX + "WARNING: Main frame not available!")
         );
+    }
+
+    /**
+     * Collect elements from the container, optionally recursively.
+     */
+    private List<Element> collectElements(Namespace container, String elementType,
+            boolean includeSubtypes, boolean recursive) {
+        List<Element> result = new ArrayList<>();
+        collectElementsRecursive(container, elementType, includeSubtypes, recursive, result);
+        return result;
+    }
+
+    private void collectElementsRecursive(Namespace container, String elementType,
+            boolean includeSubtypes, boolean recursive, List<Element> result) {
+        // Snapshot collection to avoid ConcurrentModificationException
+        Object[] ownedElements = container.getOwnedElement().toArray();
+
+        for (Object obj : ownedElements) {
+            if (!(obj instanceof Element)) continue;
+            Element e = (Element) obj;
+
+            if (matchesElementType(e, elementType, includeSubtypes)) {
+                result.add(e);
+            }
+
+            // Recurse into nested namespaces
+            if (recursive && e instanceof Namespace) {
+                collectElementsRecursive((Namespace) e, elementType, includeSubtypes, true, result);
+            }
+        }
     }
 
     private void showMessageInBrowser(String message) {
@@ -354,7 +451,7 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
                 case "Interface":
                     return e instanceof Interface;
                 case "Component":
-                    return e instanceof com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
+                    return e instanceof Component;
                 default:
                     // For other types, fall back to humanType contains check
                     return humanType.contains(elementType);
@@ -454,6 +551,7 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         }
         configPanel = null;
         splitPane = null;
+        currentElements = null;
     }
 
     @Override
