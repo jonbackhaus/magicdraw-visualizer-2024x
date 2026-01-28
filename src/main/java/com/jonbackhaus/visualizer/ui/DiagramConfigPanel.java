@@ -312,6 +312,43 @@ public class DiagramConfigPanel extends JPanel {
         return showLegendCheckbox.isSelected();
     }
 
+    // Setters for loading saved settings
+    public void setRecursive(boolean value) {
+        recursiveCheckbox.setSelected(value);
+    }
+
+    public void setElementType(String value) {
+        elementTypeCombo.setSelectedItem(value);
+    }
+
+    public void setIncludeSubtypes(boolean value) {
+        includeSubtypesCheckbox.setSelected(value);
+    }
+
+    public void setRelationCriteria(String value) {
+        relationCriteriaCombo.setSelectedItem(value);
+    }
+
+    public void setShowImplied(boolean value) {
+        showImpliedCheckbox.setSelected(value);
+    }
+
+    public void setDepth(int value) {
+        depthSpinner.setValue(value);
+    }
+
+    public void setShowOrphans(boolean value) {
+        showOrphansCheckbox.setSelected(value);
+    }
+
+    public void setShowLabels(boolean value) {
+        showLabelsCheckbox.setSelected(value);
+    }
+
+    public void setShowLegend(boolean value) {
+        showLegendCheckbox.setSelected(value);
+    }
+
     public void addRefreshListener(ActionListener listener) {
         refreshButton.addActionListener(listener);
     }

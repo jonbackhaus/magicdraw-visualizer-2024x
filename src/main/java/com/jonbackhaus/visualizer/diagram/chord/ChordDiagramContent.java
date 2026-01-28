@@ -23,7 +23,10 @@ import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Association;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Property;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Type;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Comment;
 import com.nomagic.uml2.ext.magicdraw.classes.mdinterfaces.Interface;
+import com.nomagic.magicdraw.openapi.uml.SessionManager;
+import com.nomagic.magicdraw.openapi.uml.ModelElementsManager;
 import com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
 import com.nomagic.magicdraw.uml.BaseElement;
 import com.nomagic.magicdraw.uml.diagrams.NonSymbolDiagramContent;
@@ -56,6 +59,7 @@ import static com.teamdev.jxbrowser.engine.RenderingMode.OFF_SCREEN;
 public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> {
 
     private static final String LOG_PREFIX = "[Visualizer] ";
+    private static final String SETTINGS_COMMENT_PREFIX = "CHORD_DIAGRAM_SETTINGS:";
 
     private final DiagramPresentationElement diagram;
     private DiagramConfigPanel configPanel;
@@ -271,6 +275,9 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             // Set up context selection dialog
             configPanel.setContextSelectAction(e -> showContextSelectionDialog());
 
+            // Load saved settings before creating the split pane
+            loadSettings();
+
             splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, configPanel, browserView);
             splitPane.setDividerLocation(280);
 
@@ -311,6 +318,149 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
                 configPanel.setContextElement((Namespace) selected);
             }
         }
+    }
+
+    /**
+     * Save current settings to a Comment element owned by the diagram.
+     */
+    private void saveSettings() {
+        Project project = Application.getInstance().getProject();
+        if (project == null || configPanel == null) return;
+
+        try {
+            // Build settings JSON
+            JsonObject settings = new JsonObject();
+
+            // Context element ID (if overridden)
+            if (configPanel.isContextOverridden()) {
+                Namespace ctx = configPanel.getContextElement();
+                if (ctx != null) {
+                    settings.addProperty("contextElementId", ctx.getID());
+                }
+            }
+
+            settings.addProperty("recursive", configPanel.isRecursive());
+            settings.addProperty("elementType", configPanel.getElementType());
+            settings.addProperty("includeSubtypes", configPanel.isIncludeSubtypes());
+            settings.addProperty("relationCriteria", configPanel.getRelationCriteria());
+            settings.addProperty("showImplied", configPanel.isShowImplied());
+            settings.addProperty("depth", configPanel.getDepth());
+            settings.addProperty("showOrphans", configPanel.isShowOrphans());
+            settings.addProperty("showLabels", configPanel.isShowLabels());
+            settings.addProperty("showLegend", configPanel.isShowLegend());
+
+            String json = new Gson().toJson(settings);
+            System.out.println(LOG_PREFIX + "Saving settings: " + json);
+
+            // Find or create the settings comment
+            Element diagramElement = diagram.getDiagram();
+            Comment settingsComment = findSettingsComment(diagramElement);
+
+            SessionManager.getInstance().createSession(project, "Save Chord Diagram Settings");
+            try {
+                if (settingsComment == null) {
+                    // Create new comment
+                    settingsComment = project.getElementsFactory().createCommentInstance();
+                    settingsComment.setOwner(diagramElement);
+                }
+                // Store with prefix to identify this as a settings comment
+                settingsComment.setBody(SETTINGS_COMMENT_PREFIX + json);
+                SessionManager.getInstance().closeSession(project);
+                System.out.println(LOG_PREFIX + "Settings saved successfully");
+            } catch (Exception e) {
+                SessionManager.getInstance().cancelSession(project);
+                System.out.println(LOG_PREFIX + "Error saving settings: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            System.out.println(LOG_PREFIX + "Error in saveSettings: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load settings from the diagram's Comment element.
+     */
+    private void loadSettings() {
+        if (configPanel == null) return;
+
+        try {
+            Element diagramElement = diagram.getDiagram();
+            Comment settingsComment = findSettingsComment(diagramElement);
+
+            if (settingsComment == null || settingsComment.getBody() == null) {
+                System.out.println(LOG_PREFIX + "No saved settings found");
+                return;
+            }
+
+            String body = settingsComment.getBody();
+            // Strip the prefix to get the JSON
+            String json = body.substring(SETTINGS_COMMENT_PREFIX.length());
+            System.out.println(LOG_PREFIX + "Loading settings: " + json);
+
+            JsonObject settings = new Gson().fromJson(json, JsonObject.class);
+
+            // Restore context element
+            if (settings.has("contextElementId")) {
+                String contextId = settings.get("contextElementId").getAsString();
+                Project project = Application.getInstance().getProject();
+                if (project != null) {
+                    BaseElement ctx = project.getElementByID(contextId);
+                    if (ctx instanceof Namespace) {
+                        configPanel.setContextElement((Namespace) ctx);
+                    }
+                }
+            }
+
+            // Restore other settings
+            if (settings.has("recursive")) {
+                configPanel.setRecursive(settings.get("recursive").getAsBoolean());
+            }
+            if (settings.has("elementType")) {
+                configPanel.setElementType(settings.get("elementType").getAsString());
+            }
+            if (settings.has("includeSubtypes")) {
+                configPanel.setIncludeSubtypes(settings.get("includeSubtypes").getAsBoolean());
+            }
+            if (settings.has("relationCriteria")) {
+                configPanel.setRelationCriteria(settings.get("relationCriteria").getAsString());
+            }
+            if (settings.has("showImplied")) {
+                configPanel.setShowImplied(settings.get("showImplied").getAsBoolean());
+            }
+            if (settings.has("depth")) {
+                configPanel.setDepth(settings.get("depth").getAsInt());
+            }
+            if (settings.has("showOrphans")) {
+                configPanel.setShowOrphans(settings.get("showOrphans").getAsBoolean());
+            }
+            if (settings.has("showLabels")) {
+                configPanel.setShowLabels(settings.get("showLabels").getAsBoolean());
+            }
+            if (settings.has("showLegend")) {
+                configPanel.setShowLegend(settings.get("showLegend").getAsBoolean());
+            }
+
+            System.out.println(LOG_PREFIX + "Settings loaded successfully");
+        } catch (Exception e) {
+            System.out.println(LOG_PREFIX + "Error loading settings: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Find the settings Comment element owned by the diagram.
+     */
+    private Comment findSettingsComment(Element diagramElement) {
+        if (diagramElement == null) return null;
+
+        for (Object obj : diagramElement.getOwnedComment().toArray()) {
+            if (obj instanceof Comment) {
+                Comment c = (Comment) obj;
+                String body = c.getBody();
+                if (body != null && body.startsWith(SETTINGS_COMMENT_PREFIX)) {
+                    return c;
+                }
+            }
+        }
+        return null;
     }
 
     private void refreshDiagram() {
@@ -424,14 +574,22 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
                     continue; // Already processed
                 }
 
-                // Only process if this node is the source
+                // Only process if this node is the source (to avoid double-counting)
                 if (source != null && target != null && source == node) {
                     int j = elements.indexOf(target);
                     if (j != -1) {
-                        matrix[i][j] += 1.0;
+                        // Add in both directions for proper chord arc sizing
+                        // The source->target direction determines ribbon coloring
+                        matrix[i][j] += 1.0;  // Source -> Target
+                        matrix[j][i] += 1.0;  // Target -> Source (for symmetric arc sizing)
                         totalRelationships++;
+
+                        // Store relationship for navigation (source->target is primary)
                         String key = i + "-" + j;
                         currentRelationships.computeIfAbsent(key, k -> new ArrayList<>()).add(rel);
+                        // Also store reverse for navigation from either end
+                        String reverseKey = j + "-" + i;
+                        currentRelationships.computeIfAbsent(reverseKey, k -> new ArrayList<>()).add(rel);
                     }
                 }
             }
@@ -527,6 +685,9 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             },
             () -> System.out.println(LOG_PREFIX + "WARNING: Main frame not available!")
         );
+
+        // Save settings after successful refresh
+        saveSettings();
     }
 
     /**
