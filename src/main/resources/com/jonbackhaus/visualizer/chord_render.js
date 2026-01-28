@@ -28,6 +28,18 @@ function navigateToElement(index) {
 }
 
 /**
+ * Navigate to a relationship in MagicDraw's containment tree.
+ */
+function navigateToRelationship(sourceIndex, targetIndex) {
+    if (window.javaNavigation && typeof window.javaNavigation.selectRelationship === 'function') {
+        console.log('Navigating to relationship: ' + sourceIndex + ' -> ' + targetIndex);
+        window.javaNavigation.selectRelationship(sourceIndex, targetIndex);
+    } else {
+        console.log('Java navigation bridge not available');
+    }
+}
+
+/**
  * Updates the diagram with new data.
  * @param {Object} data - Adjacency matrix and labels.
  * @param {Array<Array<number>>} data.matrix - Square Adjacency Matrix.
@@ -150,10 +162,15 @@ window.updateDiagram = function(data) {
           .data(chords)
           .join("path")
             .attr("d", ribbon)
-            .attr("fill", d => color(d.target.index))
-            .attr("stroke", d => d3.rgb(color(d.target.index)).darker())
+            .attr("fill", d => color(d.source.index))
+            .attr("stroke", d => d3.rgb(color(d.source.index)).darker())
+            .style("cursor", "pointer")
+            .on("click", function(event, d) {
+                // Navigate to the relationship itself
+                navigateToRelationship(d.source.index, d.target.index);
+            })
           .append("title")
-            .text(d => `${names[d.source.index]} \u2194 ${names[d.target.index]}: ${d.source.value}`);
+            .text(d => `${names[d.source.index]} \u2194 ${names[d.target.index]}: ${d.source.value}\nClick to navigate to relationship`);
 
         // Create legend (if enabled)
         if (showLegend) {

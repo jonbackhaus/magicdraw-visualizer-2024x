@@ -22,8 +22,9 @@ public class DiagramConfigPanel extends JPanel {
     private JComboBox<String> relationCriteriaCombo;
     private JCheckBox showImpliedCheckbox;
     private JSpinner depthSpinner;
-    private JCheckBox showLegendCheckbox;
+    private JCheckBox showOrphansCheckbox;
     private JCheckBox showLabelsCheckbox;
+    private JCheckBox showLegendCheckbox;
     private JButton refreshButton;
 
     private Namespace contextElement;
@@ -169,6 +170,17 @@ public class DiagramConfigPanel extends JPanel {
         add(depthSpinner, gbc);
         row++;
 
+        // Show Orphans
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        showOrphansCheckbox = new JCheckBox("Show Orphans");
+        showOrphansCheckbox.setSelected(true);
+        showOrphansCheckbox.setToolTipText("Show elements with no relationships");
+        add(showOrphansCheckbox, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
         // Show Labels
         gbc.gridx = 0;
         gbc.gridy = row;
@@ -286,6 +298,10 @@ public class DiagramConfigPanel extends JPanel {
 
     public int getDepth() {
         return (Integer) depthSpinner.getValue();
+    }
+
+    public boolean isShowOrphans() {
+        return showOrphansCheckbox.isSelected();
     }
 
     public boolean isShowLabels() {

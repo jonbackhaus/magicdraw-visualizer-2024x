@@ -18,6 +18,10 @@ import com.nomagic.magicdraw.uml.RepresentationTextCreator;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Namespace;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Relationship;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.DirectedRelationship;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Association;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Property;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Type;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package;
 import com.nomagic.uml2.ext.magicdraw.classes.mdinterfaces.Interface;
 import com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
@@ -37,7 +41,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -62,6 +68,8 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
     // Store elements for navigation
     private List<Element> currentElements = new ArrayList<>();
+    // Store relationships for navigation (key: "sourceIndex-targetIndex")
+    private Map<String, List<Relationship>> currentRelationships = new HashMap<>();
 
     public ChordDiagramContent(DiagramPresentationElement diagram) {
         System.out.println(LOG_PREFIX + "ChordDiagramContent constructor called");
@@ -170,6 +178,12 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             System.out.println(LOG_PREFIX + "JavaScript requested navigation to element index: " + index);
             SwingUtilities.invokeLater(() -> content.navigateToElement(index));
         }
+
+        @JsAccessible
+        public void selectRelationship(int sourceIndex, int targetIndex) {
+            System.out.println(LOG_PREFIX + "JavaScript requested navigation to relationship: " + sourceIndex + " -> " + targetIndex);
+            SwingUtilities.invokeLater(() -> content.navigateToRelationship(sourceIndex, targetIndex));
+        }
     }
 
     /**
@@ -188,6 +202,35 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         Project project = Application.getInstance().getProject();
         if (project != null && project.getBrowser() != null) {
             project.getBrowser().getContainmentTree().openNode(element, true);
+        }
+    }
+
+    /**
+     * Navigate to a relationship in the containment tree.
+     */
+    private void navigateToRelationship(int sourceIndex, int targetIndex) {
+        String key = sourceIndex + "-" + targetIndex;
+        List<Relationship> rels = currentRelationships.get(key);
+
+        if (rels == null || rels.isEmpty()) {
+            // Try reverse direction
+            key = targetIndex + "-" + sourceIndex;
+            rels = currentRelationships.get(key);
+        }
+
+        if (rels == null || rels.isEmpty()) {
+            System.out.println(LOG_PREFIX + "No relationships found for: " + sourceIndex + " <-> " + targetIndex);
+            return;
+        }
+
+        // Navigate to the first relationship (could enhance to show a list if multiple)
+        Relationship rel = rels.get(0);
+        String name = RepresentationTextCreator.getRepresentedText((BaseElement) rel);
+        System.out.println(LOG_PREFIX + "Navigating to relationship: " + name);
+
+        Project project = Application.getInstance().getProject();
+        if (project != null && project.getBrowser() != null) {
+            project.getBrowser().getContainmentTree().openNode(rel, true);
         }
     }
 
@@ -293,13 +336,15 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         boolean recursive = configPanel.isRecursive();
         boolean showLabels = configPanel.isShowLabels();
         boolean showLegend = configPanel.isShowLegend();
+        boolean showOrphans = configPanel.isShowOrphans();
+        String relationCriteria = configPanel.getRelationCriteria();
 
         System.out.println(LOG_PREFIX + "Element type filter: " + elementType +
-            ", includeSubtypes: " + includeSubtypes + ", recursive: " + recursive);
+            ", includeSubtypes: " + includeSubtypes + ", recursive: " + recursive +
+            ", relationCriteria: " + relationCriteria + ", showOrphans: " + showOrphans);
 
         // 1. Collect elements of the specified type in the container
         List<Element> elements = collectElements(container, elementType, includeSubtypes, recursive);
-        currentElements = elements; // Store for navigation
 
         System.out.println(LOG_PREFIX + "Found " + elements.size() + " elements matching filter");
 
@@ -317,8 +362,9 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
 
         System.out.println(LOG_PREFIX + "Element names: " + names);
 
-        // 3. Build Adjacency Matrix
+        // 3. Build Adjacency Matrix and track relationships
         double[][] matrix = new double[size][size];
+        currentRelationships.clear();
         int totalRelationships = 0;
         for (int i = 0; i < size; i++) {
             Element node = elements.get(i);
@@ -328,23 +374,126 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
             for (Object relObj : relationships) {
                 if (!(relObj instanceof Relationship)) continue;
                 Relationship rel = (Relationship) relObj;
-                // Snapshot related elements as well
-                Object[] relatedArray = rel.getRelatedElement().toArray();
 
-                for (Object targetObj : relatedArray) {
-                    if (!(targetObj instanceof Element)) continue;
-                    Element target = (Element) targetObj;
-                    if (target == node) continue;
+                // Filter by relation criteria
+                if (!matchesRelationCriteria(rel, relationCriteria)) continue;
+
+                // Determine source and target based on relationship type
+                Element source = null;
+                Element target = null;
+
+                if (rel instanceof Association) {
+                    // For Associations, use memberEnds to determine direction
+                    Association assoc = (Association) rel;
+                    List<?> memberEnds = assoc.getMemberEnd();
+                    if (memberEnds.size() >= 2) {
+                        Property firstEnd = (Property) memberEnds.get(0);
+                        Property secondEnd = (Property) memberEnds.get(1);
+                        Type firstType = firstEnd.getType();
+                        Type secondType = secondEnd.getType();
+                        // Source is the type of the first memberEnd, target is the type of the second
+                        if (firstType instanceof Element && secondType instanceof Element) {
+                            source = (Element) firstType;
+                            target = (Element) secondType;
+                        }
+                    }
+                } else if (rel instanceof DirectedRelationship) {
+                    // For directed relationships, use source/target collections
+                    DirectedRelationship dirRel = (DirectedRelationship) rel;
+                    Object[] sources = dirRel.getSource().toArray();
+                    Object[] targets = dirRel.getTarget().toArray();
+                    if (sources.length > 0 && targets.length > 0) {
+                        source = (Element) sources[0];
+                        target = (Element) targets[0];
+                    }
+                } else {
+                    // For other relationships, use related elements (bidirectional)
+                    Object[] relatedArray = rel.getRelatedElement().toArray();
+                    for (Object targetObj : relatedArray) {
+                        if (!(targetObj instanceof Element)) continue;
+                        Element relatedEl = (Element) targetObj;
+                        if (relatedEl == node) continue;
+                        int j = elements.indexOf(relatedEl);
+                        if (j != -1) {
+                            matrix[i][j] += 1.0;
+                            totalRelationships++;
+                            String key = i + "-" + j;
+                            currentRelationships.computeIfAbsent(key, k -> new ArrayList<>()).add(rel);
+                        }
+                    }
+                    continue; // Already processed
+                }
+
+                // Only process if this node is the source
+                if (source != null && target != null && source == node) {
                     int j = elements.indexOf(target);
                     if (j != -1) {
                         matrix[i][j] += 1.0;
                         totalRelationships++;
+                        String key = i + "-" + j;
+                        currentRelationships.computeIfAbsent(key, k -> new ArrayList<>()).add(rel);
                     }
                 }
             }
         }
 
         System.out.println(LOG_PREFIX + "Built adjacency matrix with " + totalRelationships + " relationships");
+
+        // 3b. Filter out orphans if showOrphans is false
+        if (!showOrphans) {
+            List<Integer> connectedIndices = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                boolean hasConnection = false;
+                for (int j = 0; j < size; j++) {
+                    if (matrix[i][j] > 0 || matrix[j][i] > 0) {
+                        hasConnection = true;
+                        break;
+                    }
+                }
+                if (hasConnection) {
+                    connectedIndices.add(i);
+                }
+            }
+
+            if (connectedIndices.size() < size) {
+                System.out.println(LOG_PREFIX + "Filtering orphans: " + size + " -> " + connectedIndices.size() + " elements");
+
+                // Rebuild filtered lists
+                List<Element> filteredElements = new ArrayList<>();
+                List<String> filteredNames = new ArrayList<>();
+                for (int idx : connectedIndices) {
+                    filteredElements.add(elements.get(idx));
+                    filteredNames.add(names.get(idx));
+                }
+
+                // Rebuild matrix with new indices
+                int newSize = connectedIndices.size();
+                double[][] newMatrix = new double[newSize][newSize];
+                Map<String, List<Relationship>> newRelationships = new HashMap<>();
+
+                for (int newI = 0; newI < newSize; newI++) {
+                    int oldI = connectedIndices.get(newI);
+                    for (int newJ = 0; newJ < newSize; newJ++) {
+                        int oldJ = connectedIndices.get(newJ);
+                        newMatrix[newI][newJ] = matrix[oldI][oldJ];
+                        String oldKey = oldI + "-" + oldJ;
+                        if (currentRelationships.containsKey(oldKey)) {
+                            String newKey = newI + "-" + newJ;
+                            newRelationships.put(newKey, currentRelationships.get(oldKey));
+                        }
+                    }
+                }
+
+                // Replace with filtered data
+                elements = filteredElements;
+                names = filteredNames;
+                matrix = newMatrix;
+                size = newSize;
+                currentRelationships = newRelationships;
+            }
+        }
+
+        currentElements = elements; // Update stored elements (may have been filtered)
 
         // 4. Send to Browser
         Gson gson = new Gson();
@@ -459,6 +608,37 @@ public class ChordDiagramContent implements NonSymbolDiagramContent<JComponent> 
         }
 
         return false;
+    }
+
+    /**
+     * Check if a relationship matches the specified relation criteria filter.
+     * Uses humanType for matching to handle stereotyped relationships correctly.
+     */
+    private boolean matchesRelationCriteria(Relationship rel, String criteria) {
+        if ("Any".equals(criteria)) {
+            return true;
+        }
+
+        String humanType = ((BaseElement) rel).getHumanType();
+
+        switch (criteria) {
+            case "Dependency":
+                // Match Dependency but not its subtypes like Usage or Realization
+                return "Dependency".equals(humanType);
+            case "Association":
+                // Match Association and its variations
+                return humanType.contains("Association");
+            case "Generalization":
+                return "Generalization".equals(humanType);
+            case "Realization":
+                // Match Interface Realization, Realization, etc.
+                return humanType.contains("Realization");
+            case "Usage":
+                return "Usage".equals(humanType);
+            default:
+                // Unknown criteria, show all
+                return true;
+        }
     }
 
     private void loadHtml() {
